@@ -40,16 +40,18 @@ pub struct Game {
 
 impl Game {
     pub fn new() -> Self {
-        Self {player1: Player::new(10, 30), player2: Player::new(25, 60), tick_count: 0, ball: Ball::new(12,13,1,2), status: Status::Normal}
+        Self {player1: Player::new(10, 20), player2: Player::new(8, 12), tick_count: 0, ball: Ball::new(12,13,1,2), status: Status::Normal}
     }
 
     pub fn key(&mut self, key: DecodedKey) {
+        panic!("{:?} {:?}", self.status, key);
         match self.status {
             Status::Normal => match key {
                 DecodedKey::RawKey(key) => {
                     match key {
                         KeyCode::ArrowUp => {
                             self.player2.move_up();
+                            panic!("Up: {} {}", self.player2.x, self.player2.y);
                         }
                         KeyCode::ArrowDown => {
                             self.player2.move_down();
@@ -75,14 +77,15 @@ impl Game {
 
     // pub fn tick(&mut self) {
     //     self.tick_count += 1;
-    //     plot('*', self.player1.x, self.player1.y, ColorCode::new(Color::Green, Color::Black));
-    //     plot('*', self.player2.x, self.player2.y, ColorCode::new(Color::Green, Color::Black));
+    //     plot('*', self.player1.x, self.player1.y, ColorCode::new(Color::Blue, Color::Black));
+    //     plot('*', self.player2.x, self.player2.y, ColorCode::new(Color::Red, Color::Black));
     //     plot_num(self.tick_count, BUFFER_WIDTH / 2, 0, ColorCode::new(Color::LightGray, Color::Black));
     // }
 
     pub fn tick(&mut self) {
-        // AM I NOT DRAWING THEM TO THE SCREEN WITH PLOT???
+        // AM I NOT DRAWING THEM TO THE SCREEN WITH PLOT()???
         self.tick_count += 1;
+        //panic!("{}, {} {}, {}", self.player1.x, self.player1.y, self.player2.x, self.player2.y);
         plot('*', self.player1.x, self.player1.y, ColorCode::new(Color::Blue, Color::Black));
         plot('*', self.player2.x, self.player2.y, ColorCode::new(Color::Red, Color::Black));
         
@@ -116,6 +119,7 @@ impl Game {
     
 }
 
+#[derive(Debug)]
 pub enum Status {
     Normal,
     Over,
