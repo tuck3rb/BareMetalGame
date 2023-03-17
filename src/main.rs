@@ -16,7 +16,7 @@ pub extern "C" fn _start() -> ! {
         .cpu_loop(cpu_loop)
         .start()
 }
-
+ 
 static LAST_KEY: AtomicCell<Option<DecodedKey>> = AtomicCell::new(None);
 static TICKS: AtomicCell<usize> = AtomicCell::new(0);
 
@@ -40,6 +40,7 @@ fn tick() {
 }
 
 fn key(key: DecodedKey) {
+    panic!("{key:?}");
     LAST_KEY.store(Some(key));
 }
 
