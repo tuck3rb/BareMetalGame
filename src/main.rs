@@ -24,7 +24,8 @@ fn cpu_loop() -> ! {
     let mut kernel = Game::new();
     let mut last_tick = 0;
     loop {
-        if let Some(key) = LAST_KEY.swap(None) {
+        if let Some(key) = LAST_KEY.load() {
+            LAST_KEY.store(None);
             kernel.key(key);
         }
         let current_tick = TICKS.load();
@@ -40,7 +41,7 @@ fn tick() {
 }
 
 fn key(key: DecodedKey) {
-    panic!("{key:?}");
+    // panic!("{key:?}");
     LAST_KEY.store(Some(key));
 }
 
