@@ -42,8 +42,10 @@ pub struct Game {
 impl Game {
     pub fn new() -> Self {
         Self {
-            player1: Player::new(2, BUFFER_HEIGHT / 2 - PADDLE_HEIGHT / 2),
-            player2: Player::new(BUFFER_WIDTH - 3, BUFFER_HEIGHT / 2 - PADDLE_HEIGHT / 2),
+            // player1: Player::new(2, BUFFER_HEIGHT / 2 - PADDLE_HEIGHT / 2),
+            player1: Player::new(2, BUFFER_HEIGHT / 2 - PADDLE_HEIGHT / 2, 1),
+            // player2: Player::new(BUFFER_WIDTH - 3, BUFFER_HEIGHT / 2 - PADDLE_HEIGHT / 2),
+            player2: Player::new(BUFFER_WIDTH - 3, BUFFER_HEIGHT / 2 - PADDLE_HEIGHT / 2, 3),
             tick_count: 0,
             ball: Ball::new(BUFFER_WIDTH / 2, BUFFER_HEIGHT / 2, 1, 1),
             score1: 0,
@@ -76,12 +78,14 @@ impl Game {
             DecodedKey::Unicode(key) => {
                 match key {
                     'm' => {
-                        self.restart_game();
-                        self.game_state = GameState::MainMenu;
+                        if let GameState::GameOver = self.game_state {
+                            self.restart_game();
+                            self.game_state = GameState::MainMenu;
+                        }
                     }
-                    'p' => {
-                        self.score1 = 6;
-                    }
+                    // 'p' => {
+                    //     self.score1 = 6;
+                    // }
                     'w' => {
                         self.player1.move_up();
                     }
@@ -96,9 +100,9 @@ impl Game {
                             self.game_state = GameState::SelectGameMode;
                         }
                     }
-                    ' ' => {
-                        // PAUSE GAME
-                    }
+                    // ' ' => {
+                    //     // PAUSE GAME ?
+                    // }
                     'f' => {
                         if let GameState::SelectGameMode = self.game_state {
                             self.game_mode = GameMode::Footy;
@@ -118,20 +122,28 @@ impl Game {
                         }
                     }
                     '0' => {
-                        self.difficulty = Difficulty::Multiplayer;
-                        self.game_state = GameState::Playing;
+                        if let GameState::DifficultySelect = self.game_state {
+                            self.difficulty = Difficulty::Multiplayer;
+                            self.game_state = GameState::Playing;
+                        }
                     }
                     '1' => {
-                        self.difficulty = Difficulty::Easy;
-                        self.game_state = GameState::Playing;
+                        if let GameState::DifficultySelect = self.game_state {
+                            self.difficulty = Difficulty::Easy;
+                            self.game_state = GameState::Playing;
+                        }
                     }
                     '2' => {
-                        self.difficulty = Difficulty::Medium;
-                        self.game_state = GameState::Playing;
+                        if let GameState::DifficultySelect = self.game_state {
+                            self.difficulty = Difficulty::Medium;
+                            self.game_state = GameState::Playing;
+                        }
                     }
                     '3' => {
-                        self.difficulty = Difficulty::Hard;
-                        self.game_state = GameState::Playing;
+                        if let GameState::DifficultySelect = self.game_state {
+                            self.difficulty = Difficulty::Hard;
+                            self.game_state = GameState::Playing;
+                        }
                     }
                     _ => {}
                 }
@@ -154,6 +166,20 @@ impl Game {
                 self.display_difficulty_menu();
             }
             GameState::Playing => {
+                match self.difficulty {
+                    Difficulty::Multiplayer => {
+                        self.cpu_move();
+                    }
+                    Difficulty::Easy => {
+                        self.cpu_move();
+                    }
+                    Difficulty::Medium => {
+                        self.cpu_move();
+                    }
+                    Difficulty::Hard => {
+                        self.cpu_move();
+                    }
+                }
                 self.tick_count += 1;
                 let background_color = match self.game_mode {
                     GameMode::Footy => Color::Green,
@@ -196,6 +222,26 @@ impl Game {
         }
     }
     
+    fn cpu_move(&mut self) {
+        let ball_y = self.ball.y as isize;
+        let player2_y = self.player2.y as isize;
+        let player2_max_velocity = self.player2.max_velocity as isize;
+
+        let velocity = match self.difficulty {
+            Difficulty::Multiplayer => 0,
+            Difficulty::Easy => 1,
+            Difficulty::Medium => 2,
+            Difficulty::Hard => 3,
+            _ => 0,
+        };
+
+        if velocity > 0 {
+            let distance = ball_y - player2_y;
+            let direction = distance.signum();
+            let move_amount = (velocity * direction).min(player2_max_velocity);
+            self.player2.y = (self.player2.y as isize + move_amount).max(0).min((BUFFER_HEIGHT - PADDLE_HEIGHT) as isize) as usize;
+        }
+    }
     
     fn display_main_menu(&self) {
         let game_name = "FOOTY-PONG";
@@ -314,6 +360,9 @@ impl Game {
         for x in 0..BUFFER_WIDTH {
             plot('-', x, 0, court_color);
             plot('-', x, BUFFER_HEIGHT - 1, court_color);
+
+            plot('-', x, 2, court_color);
+            plot('-', x, BUFFER_HEIGHT - 3, court_color);
         }
     
         // Draw the horizontal line
@@ -324,13 +373,17 @@ impl Game {
     
         // Draw the vertical lines
         let vertical_x1 = BUFFER_WIDTH / 4;
-        let vertical_x2 = BUFFER_WIDTH / 2;
+        // let vertical_x2 = BUFFER_WIDTH / 2;
         let vertical_x3 = BUFFER_WIDTH * 3 / 4;
     
-        for y in 0..BUFFER_HEIGHT {
+        for y in 3..BUFFER_HEIGHT -3 {
             plot('|', vertical_x1, y, court_color);
             plot('|', vertical_x3, y, court_color);
-            plot('|', vertical_x2, y, court_color);
+            // plot('|', vertical_x2, y, court_color);
+        }
+
+        for y in 0..BUFFER_HEIGHT {
+            plot('|', BUFFER_WIDTH / 2, y, court_color);
         }
     }
     
@@ -519,11 +572,13 @@ pub struct Player {
     pub x: usize,
     pub y: usize,
     prev_y: usize,
+    max_velocity: usize,
 }
 
 impl Player {
-    pub fn new(x: usize, y: usize) -> Self {
-        Self { x, y, prev_y: y}
+
+    pub fn new(x: usize, y: usize, max_velocity: usize) -> Self {
+        Self { x, y, prev_y: y, max_velocity }
     }
 
     pub fn move_up(&mut self) {
@@ -607,27 +662,3 @@ impl Ball {
 // [1] Easy
 // [2] Medium
 // [3] Hard
-
-// ------------------------------- ONLY IF DEEMED NECESSARY, I THINK THE ABOVE IS ENOUGH
-
-// Customize?
-//
-// [Y]es
-// [N]o
-
-// ------------------------------- if yes
-
-// Select Ball/Puck
-//
-// [O]riginal - @       // white
-// [C]up Final - @      // red
-// [W]inter - @         // orange
-// [] - @               // more?
-
-// -------------------------------
-
-// Select Team (Player 1)
-//
-// [R]eal Madrid            // purple -- Europe champs
-// [M]anchester City        // light blue -- england champs or maybe Boca Juniors
-// [L]AFC                   // gold? black? -- NA champs
