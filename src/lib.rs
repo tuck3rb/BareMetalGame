@@ -6,8 +6,24 @@ use pc_keyboard::{DecodedKey, KeyCode};
 const PADDLE_HEIGHT: usize = 5;
 
 pub enum GameState {
+    MainMenu,
+    SelectGameMode,
+    DifficultySelect,
     Playing,
     GameOver,
+}
+
+pub enum GameMode {
+    Footy,
+    Hockey,
+    Tennis,
+}
+
+pub enum Difficulty {
+    Multiplayer,
+    Easy, 
+    Medium,
+    Hard,
 }
 
 pub struct Game {
@@ -18,7 +34,9 @@ pub struct Game {
     score1: u32,
     score2: u32,
     ball_speed: isize,
+    game_mode: GameMode,
     game_state: GameState,
+    difficulty: Difficulty,
 }
 
 impl Game {
@@ -31,7 +49,9 @@ impl Game {
             score1: 0,
             score2: 0,
             ball_speed: 2,
-            game_state: GameState::Playing,
+            game_mode: GameMode::Footy,
+            game_state: GameState::MainMenu,
+            difficulty: Difficulty::Multiplayer,
         }
     }
 
@@ -45,11 +65,23 @@ impl Game {
                     KeyCode::ArrowDown => {
                         self.player2.move_down();
                     }
+                    KeyCode::Enter => {
+                        if let GameState::MainMenu = self.game_state {
+                            self.game_state = GameState::SelectGameMode;
+                        }
+                    }
                     _ => {}
                 }
             },
             DecodedKey::Unicode(key) => {
                 match key {
+                    'm' => {
+                        self.restart_game();
+                        self.game_state = GameState::MainMenu;
+                    }
+                    'p' => {
+                        self.score1 = 6;
+                    }
                     'w' => {
                         self.player1.move_up();
                     }
@@ -59,6 +91,48 @@ impl Game {
                     'r' => {
                         self.restart_game();
                     }
+                    '\n' | '\r' => { // Handle 'Enter' key press in Unicode case as well
+                        if let GameState::MainMenu = self.game_state {
+                            self.game_state = GameState::SelectGameMode;
+                        }
+                    }
+                    ' ' => {
+                        // PAUSE GAME
+                    }
+                    'f' => {
+                        if let GameState::SelectGameMode = self.game_state {
+                            self.game_mode = GameMode::Footy;
+                            self.game_state = GameState::DifficultySelect;
+                        }
+                    }
+                    'h' => {
+                        if let GameState::SelectGameMode = self.game_state {
+                            self.game_mode = GameMode::Hockey;
+                            self.game_state = GameState::DifficultySelect;
+                        }
+                    }
+                    't' => {
+                        if let GameState::SelectGameMode = self.game_state {
+                            self.game_mode = GameMode::Tennis;
+                            self.game_state = GameState::DifficultySelect;
+                        }
+                    }
+                    '0' => {
+                        self.difficulty = Difficulty::Multiplayer;
+                        self.game_state = GameState::Playing;
+                    }
+                    '1' => {
+                        self.difficulty = Difficulty::Easy;
+                        self.game_state = GameState::Playing;
+                    }
+                    '2' => {
+                        self.difficulty = Difficulty::Medium;
+                        self.game_state = GameState::Playing;
+                    }
+                    '3' => {
+                        self.difficulty = Difficulty::Hard;
+                        self.game_state = GameState::Playing;
+                    }
                     _ => {}
                 }
             }
@@ -66,16 +140,47 @@ impl Game {
     }
 
     pub fn tick(&mut self) {
-        self.clear_screen();
-        self.draw_soccer_field();
-    
         match self.game_state {
+            GameState::MainMenu => {
+                self.clear_screen();
+                self.display_main_menu();
+            }
+            GameState::SelectGameMode => {
+                self.clear_screen();
+                self.display_game_mode_menu();
+            }
+            GameState::DifficultySelect => {
+                self.clear_screen();
+                self.display_difficulty_menu();
+            }
             GameState::Playing => {
                 self.tick_count += 1;
+                let background_color = match self.game_mode {
+                    GameMode::Footy => Color::Green,
+                    GameMode::Hockey => Color::White,
+                    GameMode::Tennis => Color::Blue,
+                };
+                self.clear_screen_playing(background_color);
+                match self.game_mode {
+                    GameMode::Footy => {
+                        self.draw_soccer_field();
+                    }
+                    GameMode::Tennis => {
+                        self.draw_tennis_court();
+                    }
+                    GameMode::Hockey => {
+                        self.draw_hockey_rink();
+                    }
+                }
                 self.render();
-                self.ball.update_position();
+                let ball_color = match self.game_mode {
+                    GameMode::Footy => Color::White,
+                    GameMode::Hockey => Color::Black,
+                    GameMode::Tennis => Color::Green,
+                };
+                self.ball.update_position(ball_color, background_color);
                 self.handle_collisions();
-    
+        
                 // Check for game over
                 if self.score1 == 7 || self.score2 == 7 {
                     let winner = if self.score1 == 7 { 1 } else { 2 };
@@ -84,6 +189,7 @@ impl Game {
                 }
             }
             GameState::GameOver => {
+                self.clear_screen();
                 let winner = if self.score1 == 7 { 1 } else { 2 };
                 self.display_winner_message(winner);
             }
@@ -91,6 +197,60 @@ impl Game {
     }
     
     
+    fn display_main_menu(&self) {
+        let game_name = "FOOTY-PONG";
+        let game_name_x = (BUFFER_WIDTH / 2).saturating_sub(game_name.len() / 2);
+        let game_name_y = BUFFER_HEIGHT / 2 - 2;
+        let game_name_color = ColorCode::new(Color::Yellow, Color::Black);
+        plot_str(game_name, game_name_x, game_name_y, game_name_color);
+
+        let main_menu_message = "Press ENTER to start";
+        let message_x = (BUFFER_WIDTH / 2).saturating_sub(main_menu_message.len() / 2);
+        let message_y = BUFFER_HEIGHT / 2 + 1;
+        let color = ColorCode::new(Color::White, Color::Black);
+        plot_str(main_menu_message, message_x, message_y, color);
+    }
+
+    fn display_game_mode_menu(&self) {
+        let game_mode_message = "Select Game Mode:";
+        let game_mode_x = (BUFFER_WIDTH / 2).saturating_sub(game_mode_message.len() / 2);
+        let game_mode_y = BUFFER_HEIGHT / 2 - 2;
+        let color = ColorCode::new(Color::Yellow, Color::Black);
+        plot_str(game_mode_message, game_mode_x, game_mode_y, color);
+
+        let modes = [
+            ("[F]ooty ", GameMode::Footy),
+            ("[H]ockey", GameMode::Hockey),
+            ("[T]ennis", GameMode::Tennis),
+        ];
+
+        for (i, (label, _)) in modes.iter().enumerate() {
+            let x = (BUFFER_WIDTH / 2).saturating_sub(label.len() / 2);
+            let y = game_mode_y + i as usize + 2;
+            plot_str(label, x, y, ColorCode::new(Color::White, Color::Black));
+        }
+    }
+    
+    fn display_difficulty_menu(&self) {
+        let gd_message = "Select Difficulty:";
+        let gd_x = (BUFFER_WIDTH / 2).saturating_sub(gd_message.len() / 2);
+        let gd_y = BUFFER_HEIGHT / 2 - 2;
+        let color = ColorCode::new(Color::Yellow, Color::Black);
+        plot_str(gd_message, gd_x, gd_y, color);
+
+        let modes = [
+            ("[0] Multiplayer", Difficulty::Multiplayer),
+            ("[1] Easy       ", Difficulty::Easy),
+            ("[2] Medium     ", Difficulty::Medium),
+            ("[3] Hard       ", Difficulty::Hard),
+        ];
+
+        for (i, (label, _)) in modes.iter().enumerate() {
+            let x = (BUFFER_WIDTH / 2).saturating_sub(label.len() / 2);
+            let y = gd_y + i as usize + 2;
+            plot_str(label, x, y, ColorCode::new(Color::White, Color::Black));
+        }
+    }
 
     pub fn draw_soccer_field(&self) {
         let field_color = ColorCode::new(Color::White, Color::Green);
@@ -142,18 +302,95 @@ impl Game {
         // TBD
 
     }
+   
+    pub fn draw_tennis_court(&self) {
+        let court_color = ColorCode::new(Color::White, Color::Blue);
+    
+        // Draw the outer boundary
+        for y in 0..BUFFER_HEIGHT {
+            plot('|', 0, y, court_color);
+            plot('|', BUFFER_WIDTH - 1, y, court_color);
+        }
+        for x in 0..BUFFER_WIDTH {
+            plot('-', x, 0, court_color);
+            plot('-', x, BUFFER_HEIGHT - 1, court_color);
+        }
+    
+        // Draw the horizontal line
+        let horizontal_y = BUFFER_HEIGHT / 2;
+        for x in BUFFER_WIDTH / 4..BUFFER_WIDTH * 3 / 4 {
+            plot('-', x, horizontal_y, court_color);
+        }
+    
+        // Draw the vertical lines
+        let vertical_x1 = BUFFER_WIDTH / 4;
+        let vertical_x2 = BUFFER_WIDTH / 2;
+        let vertical_x3 = BUFFER_WIDTH * 3 / 4;
+    
+        for y in 0..BUFFER_HEIGHT {
+            plot('|', vertical_x1, y, court_color);
+            plot('|', vertical_x3, y, court_color);
+            plot('|', vertical_x2, y, court_color);
+        }
+    }
+    
+    pub fn draw_hockey_rink(&self) {
+        let court_color = ColorCode::new(Color::Blue, Color::White);
+        let red_lines = ColorCode::new(Color::Red, Color::White);
+    
+        // Draw the outer boundary
+        for y in 0..BUFFER_HEIGHT {
+            plot('|', 0, y, court_color);
+            plot('|', BUFFER_WIDTH - 1, y, court_color);
+        }
+        for x in 0..BUFFER_WIDTH {
+            plot('-', x, 0, court_color);
+            plot('-', x, BUFFER_HEIGHT - 1, court_color);
+        }
+    
+        // Draw the vertical lines
+        let vertical_x1 = BUFFER_WIDTH / 4;
+        let vertical_x2 = BUFFER_WIDTH / 2;
+        let vertical_x3 = BUFFER_WIDTH * 3 / 4;
+    
+        for y in 0..BUFFER_HEIGHT {
+            plot('|', vertical_x1, y, court_color);
+            plot('|', vertical_x3, y, court_color);
+            plot('|', vertical_x2, y, red_lines);
+        }
+    }
     
     fn clear_screen(&self) {
         for y in 0..BUFFER_HEIGHT {
             for x in 0..BUFFER_WIDTH {
-                plot(' ', x, y, ColorCode::new(Color::Black, Color::Green));
+                plot(' ', x, y, ColorCode::new(Color::Black, Color::Black));
+            }
+        }
+    }
+
+    
+    fn clear_screen_playing(&self, background_color: Color) {
+        
+        for y in 0..BUFFER_HEIGHT {
+            for x in 0..BUFFER_WIDTH {
+                plot(' ', x, y, ColorCode::new(Color::Black, background_color));
             }
         }
     }
 
     fn render(&mut self) {
-        self.player1.render(ColorCode::new(Color::Blue, Color::Black));
-        self.player2.render(ColorCode::new(Color::Red, Color::Black));  
+        let bg_color = match self.game_mode {
+            GameMode::Footy => Color::Green,
+            GameMode::Tennis => Color::Blue,
+            GameMode::Hockey => Color::White,
+        };
+        let p1_color = match self.game_mode {
+            GameMode::Footy => Color::Blue,
+            GameMode::Tennis => Color::Yellow,
+            GameMode::Hockey => Color::Blue,
+        };
+        self.player1.render(ColorCode::new(p1_color, bg_color));
+        self.player2.render(ColorCode::new(Color::Red, bg_color));  
         self.display_score();  
     }
     
@@ -201,8 +438,18 @@ impl Game {
     }
 
     fn display_score(&mut self) {
-        plot_num(self.score1 as isize, 30, 1, ColorCode::new(Color::Blue, Color::Green));
-        plot_num(self.score2 as isize, 50, 1, ColorCode::new(Color::Red, Color::Green));
+        let score_color = match self.game_mode {
+            GameMode::Footy => Color::Green,
+            GameMode::Hockey => Color::White,
+            GameMode::Tennis => Color::Blue,
+        };
+        let p1_color = match self.game_mode {
+            GameMode::Footy => Color::Blue,
+            GameMode::Hockey => Color::Blue,
+            GameMode::Tennis => Color::Yellow,
+        };
+        plot_num(self.score1 as isize, 30, 1, ColorCode::new(p1_color, score_color));
+        plot_num(self.score2 as isize, 50, 1, ColorCode::new(Color::Red, score_color));
     }
 
     fn check_for_winner(&self) -> u8 {
@@ -218,26 +465,29 @@ impl Game {
     fn display_winner_message(&self, winner: u8) {
         let mut winner_message;
         let mut wm_color;
+        // DEPENDS ON GAME MODE (TENNIS EXCEPTION)
         if self.score1 > self.score2 {
-            winner_message = "Blue WINS!";
-            wm_color = ColorCode::new(Color::Blue, Color::Green);
+            winner_message = "Player 1 WINS!";
+            wm_color = ColorCode::new(Color::Yellow, Color::Black);
         } else {
-            winner_message = "Red WINS!";
-            wm_color = ColorCode::new(Color::Red, Color::Green);
+            winner_message = "Player 2 WINS!";
+            wm_color = ColorCode::new(Color::Yellow, Color::Black);
         }
         let message_x = (BUFFER_WIDTH / 2).saturating_sub(winner_message.len() / 2);
-        let message_y = BUFFER_HEIGHT / 2;
-        let color = ColorCode::new(Color::White, Color::Green);
+        let message_y = (BUFFER_HEIGHT / 2) - 2;
+        let color = ColorCode::new(Color::White, Color::Black);
         plot_str(&winner_message, message_x, message_y, wm_color);
     
-        let restart_message = "Press R to restart";
+        let main_menu_message = "[M]ain Menu";
+        let main_menu_x = (BUFFER_WIDTH / 2).saturating_sub(main_menu_message.len() / 2);
+        let main_menu_y = message_y + 2;
+        plot_str(main_menu_message, main_menu_x, main_menu_y, color);
+
+        let restart_message = "[R]estart";
         let restart_x = (BUFFER_WIDTH / 2).saturating_sub(restart_message.len() / 2);
-        let restart_y = message_y + 2;
+        let restart_y = main_menu_y + 2;
         plot_str(restart_message, restart_x, restart_y, color);
     }
-    
-    
-
     
     fn restart_game(&mut self) {
         if let GameState::GameOver = self.game_state {
@@ -250,6 +500,16 @@ impl Game {
         }
     }
     
+    fn go_main_menu(&mut self) {
+        if let GameState::GameOver = self.game_state {
+            self.player1.y = BUFFER_HEIGHT / 2 - PADDLE_HEIGHT / 2;
+            self.player2.y = BUFFER_HEIGHT / 2 - PADDLE_HEIGHT / 2;
+            self.ball.reset(BUFFER_WIDTH / 2, BUFFER_HEIGHT / 2, 1, 1);
+            self.score1 = 0;
+            self.score2 = 0;
+            self.game_state = GameState::MainMenu;
+        }
+    }
 
 }
 
@@ -280,10 +540,10 @@ impl Player {
 
     pub fn render(&mut self, color: ColorCode) {
         for y_offset in 0..PADDLE_HEIGHT {
-            plot(' ', self.x, self.prev_y + y_offset, ColorCode::new(color.foreground(), Color::Green));        
+            plot(' ', self.x, self.prev_y + y_offset, ColorCode::new(color.foreground(), color.background()));
         }
         for y_offset in 0..PADDLE_HEIGHT {
-            plot('|', self.x, self.y + y_offset, ColorCode::new(color.foreground(), Color::Green));
+            plot('#', self.x, self.y + y_offset, color);
         }
         self.prev_y = self.y;
     }
@@ -304,12 +564,12 @@ impl Ball {
         Self { x, y, x_velocity, y_velocity, prev_x: x, prev_y: y}
     }
 
-    pub fn update_position(&mut self) {
-        plot(' ', self.prev_x, self.prev_y, ColorCode::new(Color::Black, Color::Green));
+    pub fn update_position(&mut self, ball_color: Color, bgcolor: Color) {
+        plot(' ', self.prev_x, self.prev_y, ColorCode::new(Color::Black, bgcolor));
         
         self.x = (self.x as isize + self.x_velocity) as usize;
         self.y = (self.y as isize + self.y_velocity) as usize;
-        plot('@', self.x, self.y, ColorCode::new(Color::White, Color::Green));
+        plot('@', self.x, self.y, ColorCode::new(ball_color, bgcolor));
 
         self.prev_x = self.x;
         self.prev_y = self.y;
@@ -328,3 +588,46 @@ impl Ball {
     }
 
 }
+
+// Press ENTER to start
+
+// -------------------------------
+
+// Select Game Mode:
+//
+// [F]ooty (Classic mode)
+// [H]ockey
+// [T]ennis
+
+// -------------------------------
+
+// Select Difficulty:
+//
+// [0] Multiplayer 
+// [1] Easy
+// [2] Medium
+// [3] Hard
+
+// ------------------------------- ONLY IF DEEMED NECESSARY, I THINK THE ABOVE IS ENOUGH
+
+// Customize?
+//
+// [Y]es
+// [N]o
+
+// ------------------------------- if yes
+
+// Select Ball/Puck
+//
+// [O]riginal - @       // white
+// [C]up Final - @      // red
+// [W]inter - @         // orange
+// [] - @               // more?
+
+// -------------------------------
+
+// Select Team (Player 1)
+//
+// [R]eal Madrid            // purple -- Europe champs
+// [M]anchester City        // light blue -- england champs or maybe Boca Juniors
+// [L]AFC                   // gold? black? -- NA champs
