@@ -1,7 +1,7 @@
 [package]
-name = "pluggable_interrupt_os"
+name = "BareMetalGame"
 version = "0.4.5"
-authors = ["gjf2a <ferrer@hendrix.edu>"]
+authors = ["tuck3rb brocktk@hendrix.edu"]
 edition = "2021"
 license = "MIT"
 description = "Enables user to create a simple x86 OS by supplying interrupt handlers"
@@ -19,7 +19,12 @@ x86_64 = "0.14"
 uart_16550 = "0.2"
 pic8259 = "0.10"
 pc-keyboard = "0.5" # Can't upgrade to 0.6
+pluggable_interrupt_os = "0.4"
 
 [dependencies.lazy_static]
 version = "1.0"
 features = ["spin_no_std"]
+
+[dependencies.crossbeam]
+version = "0.8"
+default-features = false
