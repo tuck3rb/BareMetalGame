@@ -7,6 +7,7 @@ const PADDLE_HEIGHT: usize = 5;
 
 pub enum GameState {
     MainMenu,
+    HowToPlay,
     SelectGameMode,
     DifficultySelect,
     Playing,
@@ -113,6 +114,10 @@ impl Game {
                         if let GameState::SelectGameMode = self.game_state {
                             self.game_mode = GameMode::Hockey;
                             self.game_state = GameState::DifficultySelect;
+                        } else if let GameState::MainMenu = self.game_state {
+                            self.game_state = GameState::HowToPlay;
+                        } else if let GameState::HowToPlay = self.game_state {
+                            self.game_state = GameState::MainMenu;
                         }
                     }
                     't' => {
@@ -156,6 +161,10 @@ impl Game {
             GameState::MainMenu => {
                 self.clear_screen();
                 self.display_main_menu();
+            }
+            GameState::HowToPlay => {
+                self.clear_screen();
+                self.draw_how_to_play();
             }
             GameState::SelectGameMode => {
                 self.clear_screen();
@@ -255,6 +264,12 @@ impl Game {
         let message_y = BUFFER_HEIGHT / 2 + 1;
         let color = ColorCode::new(Color::White, Color::Black);
         plot_str(main_menu_message, message_x, message_y, color);
+
+        let htp = "[H]ow to Play";
+        let htp_x = (BUFFER_WIDTH / 2).saturating_sub(htp.len() / 2);
+        let htp_y = message_y + 1;
+        plot_str(htp, htp_x, htp_y, color);
+
     }
 
     fn display_game_mode_menu(&self) {
@@ -518,7 +533,6 @@ impl Game {
     fn display_winner_message(&self, winner: u8) {
         let mut winner_message;
         let mut wm_color;
-        // DEPENDS ON GAME MODE (TENNIS EXCEPTION)
         if self.score1 > self.score2 {
             winner_message = "Player 1 WINS!";
             wm_color = ColorCode::new(Color::Yellow, Color::Black);
@@ -541,6 +555,34 @@ impl Game {
         let restart_y = main_menu_y + 2;
         plot_str(restart_message, restart_x, restart_y, color);
     }
+
+    fn draw_how_to_play(&mut self) {
+        let title = "How to Play:";
+        let p1msg = "Player 1 (LEFT) use W and S";
+        let p2msg = "Player 2 (RIGHT) use Arrow Keys";
+        let goal = "First to 7 points wins!";
+        let rturn = "Press H to Exit";
+        let color = ColorCode::new(Color::White, Color::Black);
+
+        let message_x = (BUFFER_WIDTH / 2).saturating_sub(title.len() / 2);
+        let message_y = (BUFFER_HEIGHT / 2) - 2;
+        plot_str(title, message_x, message_y, ColorCode::new(Color::Yellow, Color::Black));
+        
+        let p1_x = (BUFFER_WIDTH / 2).saturating_sub(p1msg.len() / 2);
+        let p1_y = message_y + 2;
+        plot_str(p1msg, p1_x, p1_y, color);
+        let p2_x = (BUFFER_WIDTH / 2).saturating_sub(p2msg.len() / 2);
+        let p2_y = p1_y + 1;
+        plot_str(p2msg, p2_x, p2_y, color);
+        let g_x = (BUFFER_WIDTH / 2).saturating_sub(goal.len() / 2);
+        let g_y = p2_y + 1;
+        plot_str(goal, g_x, g_y, color);
+        let r_x = (BUFFER_WIDTH / 2).saturating_sub(rturn.len() / 2);
+        let r_y = g_y + 2;
+        plot_str(rturn, r_x, r_y, color);
+
+    }
+
     
     fn restart_game(&mut self) {
         if let GameState::GameOver = self.game_state {
@@ -662,3 +704,11 @@ impl Ball {
 // [1] Easy
 // [2] Medium
 // [3] Hard
+
+// -------------------------------
+
+// How to Play:
+//
+// Player 1 (LEFT) use W and S
+// Player 2 (RIGHT) use Arrow Keys
+// First to 7 points wins!
